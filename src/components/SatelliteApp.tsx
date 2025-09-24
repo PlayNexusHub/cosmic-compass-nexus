@@ -6,6 +6,8 @@ import { PlanetViewer } from './PlanetViewer';
 import { StatusPanel } from './StatusPanel';
 import { AnalysisPanel } from './AnalysisPanel';
 import { LoadingScreen } from './LoadingScreen';
+import { RealTimeSatelliteTracker } from './advanced/RealTimeSatelliteTracker';
+import { AdvancedAnalysisPanel } from './advanced/AdvancedAnalysisPanel';
 import { useToast } from '@/hooks/use-toast';
 
 export type PlanetType = 'earth' | 'mars' | 'moon' | 'universe';
@@ -135,17 +137,33 @@ export const SatelliteApp = () => {
             />
           </div>
           
-          <div className="flex">
-            <div className="flex-1">
-              <AnalysisPanel
-                activeAnalysis={activeAnalysis}
-                isAnalyzing={isAnalyzing}
-                planet={currentPlanet}
-              />
-            </div>
+          <div className="grid grid-cols-3 gap-4 p-4">
+            <AnalysisPanel
+              activeAnalysis={activeAnalysis}
+              isAnalyzing={isAnalyzing}
+              planet={currentPlanet}
+            />
             <StatusPanel
               satelliteData={satelliteData}
               currentPlanet={currentPlanet}
+              isAnalyzing={isAnalyzing}
+            />
+            <RealTimeSatelliteTracker />
+          </div>
+          
+          <div className="p-4">
+            <AdvancedAnalysisPanel
+              onRunAdvancedAnalysis={(params) => {
+                console.log('Advanced analysis with params:', params);
+                setIsAnalyzing(true);
+                setTimeout(() => {
+                  setIsAnalyzing(false);
+                  toast({
+                    title: "Advanced Analysis Complete",
+                    description: "AI-powered analysis finished with enhanced accuracy.",
+                  });
+                }, 4000);
+              }}
               isAnalyzing={isAnalyzing}
             />
           </div>

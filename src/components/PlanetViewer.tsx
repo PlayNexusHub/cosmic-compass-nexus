@@ -1,16 +1,17 @@
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
-import { Suspense, useState } from 'react';
+import { OrbitControls } from '@react-three/drei';
+import { Suspense, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Play, MapPin } from 'lucide-react';
+import { Download, Play, MapPin, AlertTriangle } from 'lucide-react';
 import { PlanetType, AnalysisType, SatelliteData } from './SatelliteApp';
 import { Planet3D } from './3d/Planet3D';
 import { SpaceBackground, Nebula } from './3d/SpaceBackground';
+import { FallbackViewer } from './3d/FallbackViewer';
 import { useSatelliteData } from '@/hooks/useSatelliteData';
 
 interface PlanetViewerProps {
@@ -30,8 +31,25 @@ export const PlanetViewer = ({
   const [longitude, setLongitude] = useState(0);
   const [imagerySource, setImagerySource] = useState('nasa');
   const [resolution, setResolution] = useState('high');
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [showFallback, setShowFallback] = useState(false);
   
   const { acquireData, runAnalysis, isLoading } = useSatelliteData(planet);
+
+  // Check WebGL support
+  useEffect(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) {
+        setWebGLSupported(false);
+        setShowFallback(true);
+      }
+    } catch (e) {
+      setWebGLSupported(false);
+      setShowFallback(true);
+    }
+  }, []);
 
   const handleAcquireData = () => {
     acquireData(latitude, longitude, imagerySource);
@@ -44,26 +62,92 @@ export const PlanetViewer = ({
     }
   };
 
+  const handleRetry3D = () => {
+    setShowFallback(false);
+  };
+
+  const LoadingFallback = () => (
+    <div className="w-full h-full flex items-center justify-center bg-gradient-space">
+      <div className="text-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full mx-auto mb-4"
+        />
+        <p className="text-muted-foreground">Initializing 3D View...</p>
+      </div>
+    </div>
+  );
+
+  const ErrorFallback = ({ error, retry }: { error: Error, retry: () => void }) => (
+    <div className="w-full h-full flex items-center justify-center bg-gradient-space p-8">
+      <Card className="max-w-md bg-card/90 backdrop-blur-sm border-destructive/20">
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-destructive mb-2">3D Rendering Error</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {error.message || 'Failed to initialize 3D viewer'}
+          </p>
+          <Button onClick={retry} variant="outline">
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="relative w-full h-full">
       {/* 3D Viewer */}
       <div className="absolute inset-0 bg-gradient-space">
-        <Canvas camera={{ position: [0, 0, 3] }}>
-          <Suspense fallback={null}>
-            <SpaceBackground />
-            <Nebula />
-            <ambientLight intensity={0.4} />
-            <pointLight position={[10, 10, 10]} intensity={1} />
-            <Planet3D planet={planet} activeAnalysis={activeAnalysis} />
-            <OrbitControls 
-              enablePan={true} 
-              enableZoom={true} 
-              enableRotate={true}
-              minDistance={1.5}
-              maxDistance={10}
-            />
-          </Suspense>
-        </Canvas>
+        {showFallback || !webGLSupported ? (
+          <FallbackViewer 
+            planet={planet}
+            activeAnalysis={activeAnalysis}
+            onRetry={handleRetry3D}
+          />
+        ) : (
+          <Canvas 
+            camera={{ position: [0, 0, 3], fov: 75 }}
+            gl={{ 
+              antialias: true, 
+              alpha: true,
+              powerPreference: "high-performance"
+            }}
+            onCreated={({ gl }) => {
+              gl.setClearColor('#0a0a0a', 0);
+            }}
+            onError={(error) => {
+              console.error('Canvas error:', error);
+              setShowFallback(true);
+            }}
+          >
+            <Suspense fallback={<LoadingFallback />}>
+              <SpaceBackground />
+              <Nebula />
+              <ambientLight intensity={0.6} />
+              <directionalLight 
+                position={[5, 5, 5]} 
+                intensity={1.2} 
+                castShadow
+                shadow-mapSize={[2048, 2048]}
+              />
+              <pointLight position={[-5, -5, -5]} intensity={0.5} color="#4A90E2" />
+              <Planet3D planet={planet} activeAnalysis={activeAnalysis} />
+              <OrbitControls 
+                enablePan={true} 
+                enableZoom={true} 
+                enableRotate={true}
+                minDistance={1.8}
+                maxDistance={8}
+                enableDamping={true}
+                dampingFactor={0.05}
+                autoRotate={!activeAnalysis}
+                autoRotateSpeed={0.5}
+              />
+            </Suspense>
+          </Canvas>
+        )}
       </div>
 
       {/* Controls Overlay */}
