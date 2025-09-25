@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Suspense, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -108,42 +109,71 @@ export const PlanetViewer = ({
           />
         ) : (
           <Canvas 
+            key={`${planet}-${Date.now()}`} // Force re-render on planet change
             camera={{ position: [0, 0, 3], fov: 75 }}
             gl={{ 
               antialias: true, 
               alpha: true,
-              powerPreference: "high-performance"
+              powerPreference: "high-performance",
+              preserveDrawingBuffer: false,
+              premultipliedAlpha: false
             }}
-            onCreated={({ gl }) => {
+            onCreated={({ gl, scene }) => {
               gl.setClearColor('#0a0a0a', 0);
+              gl.shadowMap.enabled = true;
+              gl.shadowMap.type = THREE.PCFSoftShadowMap;
+              scene.fog = new THREE.Fog(0x0a0a0a, 8, 15);
+              console.log(`✅ 3D Canvas created for ${planet}`);
             }}
             onError={(error) => {
               console.error('Canvas error:', error);
               setShowFallback(true);
             }}
+            style={{ background: 'transparent' }}
           >
             <Suspense fallback={<LoadingFallback />}>
               <SpaceBackground />
               <Nebula />
-              <ambientLight intensity={0.6} />
+              
+              {/* Enhanced Lighting Setup */}
+              <ambientLight intensity={0.4} color="#ffffff" />
               <directionalLight 
-                position={[5, 5, 5]} 
-                intensity={1.2} 
+                position={[10, 10, 5]} 
+                intensity={1.5} 
+                color="#ffffff"
                 castShadow
-                shadow-mapSize={[2048, 2048]}
+                shadow-mapSize={[4096, 4096]}
+                shadow-camera-near={0.1}
+                shadow-camera-far={50}
+                shadow-camera-left={-10}
+                shadow-camera-right={10}
+                shadow-camera-top={10}
+                shadow-camera-bottom={-10}
               />
-              <pointLight position={[-5, -5, -5]} intensity={0.5} color="#4A90E2" />
+              
+              {/* Fill lights for better illumination */}
+              <pointLight position={[-10, 0, -10]} intensity={0.3} color="#4A90E2" />
+              <pointLight position={[10, 0, 10]} intensity={0.3} color="#ff6b6b" />
+              <pointLight position={[0, 10, 0]} intensity={0.2} color="#00d2ff" />
+              
               <Planet3D planet={planet} activeAnalysis={activeAnalysis} />
+              
               <OrbitControls 
                 enablePan={true} 
                 enableZoom={true} 
                 enableRotate={true}
-                minDistance={1.8}
-                maxDistance={8}
+                minDistance={1.5}
+                maxDistance={10}
                 enableDamping={true}
-                dampingFactor={0.05}
+                dampingFactor={0.02}
                 autoRotate={!activeAnalysis}
-                autoRotateSpeed={0.5}
+                autoRotateSpeed={0.3}
+                rotateSpeed={0.5}
+                zoomSpeed={0.8}
+                panSpeed={0.8}
+                screenSpacePanning={false}
+                minPolarAngle={0}
+                maxPolarAngle={Math.PI}
               />
             </Suspense>
           </Canvas>

@@ -36,10 +36,22 @@ export const useSatelliteData = (planet: PlanetType): UseSatelliteDataReturn => 
               data = await api.getNASAImagery(lat, lon);
               break;
             case 'sentinel2':
-              data = await api.getSentinel2Data(lat, lon);
+              data = await api.getEnhancedSentinel2(lat, lon);
               break;
             case 'modis':
               data = await api.getMODISData(lat, lon);
+              break;
+            case 'esa':
+              data = await api.getEnhancedSentinel2(lat, lon);
+              break;
+            case 'usgs':
+              data = await api.getNASAImagery(lat, lon); // USGS uses similar endpoints
+              break;
+            case 'planet':
+              data = await api.getSentinel2Data(lat, lon); // Planet fallback to Sentinel
+              break;
+            case 'maxar':
+              data = await api.getNASAImagery(lat, lon); // Maxar fallback to NASA
               break;
             default:
               data = await api.getNASAImagery(lat, lon);
